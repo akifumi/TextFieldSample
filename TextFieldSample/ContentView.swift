@@ -17,6 +17,15 @@ final class ContentViewModel : BindableObject {
             usernameSubject.send(username)
         }
     }
+    struct StatusText {
+        let content: String
+        let color: Color
+    }
+    var status: StatusText = StatusText(content: "NG", color: .red) {
+        didSet {
+            didChange.send(())
+        }
+    }
     private let usernameSubject = PassthroughSubject<String, Never>()
     private var validatedUsername: AnyPublisher<String?, Never> {
         return usernameSubject
@@ -42,6 +51,19 @@ final class ContentViewModel : BindableObject {
         }, receiveValue: { (value) in
             print("validatedUsername.receiveValue: \(value ?? "nil")")
         })
+
+        // Update StatusText
+        _ = self?.validatedUsername
+            .map { (value) -> StatusText in
+                if let _ = value {
+                    return StatusText(content: "OK", color: .green)
+                } else {
+                    return StatusText(content: "NG", color: .red)
+                }
+            }
+            .sink { [weak self] (status) in
+                self?.status = status
+            }
     }
 }
 
@@ -51,9 +73,8 @@ struct ContentView : View {
     var body: some View {
         VStack {
             HStack {
-                (1...10 ~= viewModel.username.count)
-                    ? Text("OK").color(.green)
-                    : Text("NG").color(.red)
+                Text($viewModel.status.value.content)
+                    .color($viewModel.status.value.color)
                 Spacer()
             }
             TextField($viewModel.username, placeholder: Text("Placeholder"), onEditingChanged: { (changed) in
