@@ -9,10 +9,21 @@
 import SwiftUI
 
 struct ContentView : View {
+    @State private var text: String = ""
+
     var body: some View {
         VStack {
-            Text("Hello World")
+            HStack {
+                (1...10 ~= text.count) ? Text("OK") : Text("NG")
+                Spacer()
+            }
+            TextField($text, placeholder: Text("Placeholder"), onEditingChanged: { (changed) in
+                print("onEditingChanged: \(changed)")
+            }, onCommit: {
+                print("onCommit")
+            })
         }
+        .padding(.horizontal)
     }
 }
 
