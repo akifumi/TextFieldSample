@@ -7,30 +7,70 @@
 //
 
 import SwiftUI
+import Combine
+
+final class ContentViewModel : BindableObject {
+    var didChange = PassthroughSubject<Void, Never>()
+    var username: String = "" {
+        didSet {
+            didChange.send(())
+            usernameSubject.send(username)
+        }
+    }
+    private let usernameSubject = PassthroughSubject<String, Never>()
+    private var validatedUsername: AnyPublisher<String?, Never> {
+        return usernameSubject
+//            .debounce(for: 0.5, scheduler: ImmediateScheduler.shared)
+//            .removeDuplicates()
+            .flatMap { (username) -> AnyPublisher<String?, Never> in
+                Publishers.Future<String?, Never> { (promise) in
+                    // FIXME: API request
+                    if 1...10 ~= username.count {
+                        promise(.success(username))
+                    } else {
+                        promise(.success(nil))
+                    }
+                }
+                .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    lazy var onAppear: () -> Void = { [weak self] in
+        _ = self?.validatedUsername.sink(receiveCompletion: { (completion) in
+            print("validatedUsername.receiveCompletion: \(completion)")
+        }, receiveValue: { (value) in
+            print("validatedUsername.receiveValue: \(value ?? "nil")")
+        })
+    }
+}
 
 struct ContentView : View {
-    @State private var text: String = ""
+    @ObjectBinding var viewModel: ContentViewModel
 
     var body: some View {
         VStack {
             HStack {
-                (1...10 ~= text.count) ? Text("OK") : Text("NG")
+                (1...10 ~= viewModel.username.count)
+                    ? Text("OK").color(.green)
+                    : Text("NG").color(.red)
                 Spacer()
             }
-            TextField($text, placeholder: Text("Placeholder"), onEditingChanged: { (changed) in
+            TextField($viewModel.username, placeholder: Text("Placeholder"), onEditingChanged: { (changed) in
                 print("onEditingChanged: \(changed)")
             }, onCommit: {
                 print("onCommit")
             })
         }
         .padding(.horizontal)
+        .onAppear(perform: viewModel.onAppear)
     }
 }
 
 #if DEBUG
 struct ContentView_Previews : PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(viewModel: ContentViewModel())
     }
 }
 #endif
