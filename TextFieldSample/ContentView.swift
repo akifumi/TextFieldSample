@@ -13,8 +13,9 @@ final class ContentViewModel : BindableObject {
     var didChange = PassthroughSubject<Void, Never>()
     var username: String = "" {
         didSet {
-            didChange.send(())
+            guard oldValue != username else { return }
             usernameSubject.send(username)
+            didChange.send(())
         }
     }
     struct StatusText {
@@ -46,11 +47,17 @@ final class ContentViewModel : BindableObject {
     }
 
     lazy var onAppear: () -> Void = { [weak self] in
-        _ = self?.validatedUsername.sink(receiveCompletion: { (completion) in
-            print("validatedUsername.receiveCompletion: \(completion)")
-        }, receiveValue: { (value) in
-            print("validatedUsername.receiveValue: \(value ?? "nil")")
-        })
+        _ = self?.validatedUsername
+            .sink(receiveCompletion: { (completion) in
+                print("validatedUsername.receiveCompletion: \(completion)")
+            }, receiveValue: { [weak self] (value) in
+                if let value = value {
+                    print("validatedUsername.receiveValue: \(value)")
+                    self?.username = value
+                } else {
+                    print("validatedUsername.receiveValue: Invalid username")
+                }
+            })
 
         // Update StatusText
         _ = self?.validatedUsername
